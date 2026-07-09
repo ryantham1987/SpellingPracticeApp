@@ -64,6 +64,21 @@
   .view.active { display: block; }
 
   /* ---------- Practice grid ---------- */
+  .controls { display: flex; gap: 10px; margin-bottom: 14px; }
+  .ctrl-btn {
+    flex: 1;
+    border: none;
+    border-radius: 12px;
+    padding: 13px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    background: var(--card);
+    color: var(--primary);
+    box-shadow: var(--shadow);
+  }
+  .ctrl-btn:active { transform: scale(0.97); }
+
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -154,17 +169,18 @@
   }
   input[type="text"]:focus, select:focus { outline: none; border-color: var(--primary); }
 
-  .lang-choice { display: flex; gap: 8px; }
+  .lang-choice { display: flex; gap: 6px; }
   .lang-choice button {
     flex: 1;
-    padding: 12px;
+    padding: 11px 4px;
     border: 2px solid #e2e8f0;
     background: #fff;
     border-radius: 12px;
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 600;
     color: var(--muted);
     cursor: pointer;
+    white-space: nowrap;
   }
   .lang-choice button.selected {
     border-color: var(--primary);
@@ -259,6 +275,10 @@
 <main>
   <!-- ============ PRACTICE VIEW ============ -->
   <section id="practiceView" class="view active">
+    <div id="practiceControls" class="controls" style="display:none">
+      <button id="showAllBtn" class="ctrl-btn">👁️ Show all</button>
+      <button id="hideAllBtn" class="ctrl-btn">🙈 Hide all</button>
+    </div>
     <div id="practiceGrid" class="grid"></div>
     <div id="practiceEmpty" class="empty" style="display:none">
       <span class="big">📝</span>
@@ -279,6 +299,7 @@
         <div class="lang-choice">
           <button type="button" data-lang="en" class="selected">🇬🇧 English</button>
           <button type="button" data-lang="zh">🇨🇳 中文</button>
+          <button type="button" data-lang="ms">🇲🇾 Melayu</button>
         </div>
       </div>
       <button class="primary-btn" id="addBtn">➕ Add word</button>
@@ -303,6 +324,14 @@
   var adminLang = "en";
   var editingIndex = -1;
 
+  /* ---------- supported languages ---------- */
+  var LANGS = {
+    en: { label: "English", short: "EN", chip: "🇬🇧 English", speak: "en-GB", voice: ["en-gb", "en-us", "en-"] },
+    zh: { label: "中文", short: "中文", chip: "🇨🇳 中文", speak: "zh-CN", voice: ["zh-cn", "zh-hans", "zh-", "zh"] },
+    ms: { label: "Melayu", short: "BM", chip: "🇲🇾 Melayu", speak: "ms-MY", voice: ["ms-my", "ms-", "id-id", "id-"] }
+  };
+  function langOf(code) { return LANGS[code] || LANGS.en; }
+
   /* ---------- storage ---------- */
   function load() {
     try {
@@ -324,7 +353,7 @@
 
   function pickVoice(lang) {
     if (!voices.length) refreshVoices();
-    var wanted = lang === "zh" ? ["zh-cn", "zh-hans", "zh-", "zh"] : ["en-gb", "en-us", "en-"];
+    var wanted = langOf(lang).voice;
     for (var w = 0; w < wanted.length; w++) {
       for (var i = 0; i < voices.length; i++) {
         var vl = (voices[i].lang || "").toLowerCase();
@@ -341,7 +370,7 @@
     }
     speechSynthesis.cancel();
     var u = new SpeechSynthesisUtterance(text);
-    u.lang = lang === "zh" ? "zh-CN" : "en-GB";
+    u.lang = langOf(lang).speak;
     var v = pickVoice(lang);
     if (v) u.voice = v;
     u.rate = 0.8;
@@ -356,14 +385,26 @@
   /* ---------- practice view ---------- */
   var grid = document.getElementById("practiceGrid");
   var practiceEmpty = document.getElementById("practiceEmpty");
+  var practiceControls = document.getElementById("practiceControls");
+
+  function hideSlot(slot) {
+    slot.classList.remove("revealed");
+    slot.innerHTML = '<span class="num">' + slot.dataset.num + "</span>";
+  }
+  function revealSlot(slot) {
+    slot.classList.add("revealed");
+    slot.textContent = slot.dataset.word;
+  }
 
   function renderPractice() {
     grid.innerHTML = "";
     if (!words.length) {
       practiceEmpty.style.display = "block";
+      practiceControls.style.display = "none";
       return;
     }
     practiceEmpty.style.display = "none";
+    practiceControls.style.display = "flex";
 
     words.forEach(function (word, idx) {
       var card = document.createElement("div");
@@ -371,11 +412,13 @@
 
       var slot = document.createElement("div");
       slot.className = "word-slot";
-      slot.innerHTML = '<span class="num">' + (idx + 1) + "</span>";
+      slot.dataset.num = idx + 1;
+      slot.dataset.word = word.text;
+      hideSlot(slot);
 
       var tag = document.createElement("div");
       tag.className = "lang-tag";
-      tag.textContent = word.lang === "zh" ? "中文" : "English";
+      tag.textContent = langOf(word.lang).label;
 
       var row = document.createElement("div");
       row.className = "btn-row";
@@ -391,13 +434,8 @@
       revealBtn.title = "Show / hide the word";
       revealBtn.textContent = "👁️";
       revealBtn.addEventListener("click", function () {
-        if (slot.classList.contains("revealed")) {
-          slot.classList.remove("revealed");
-          slot.innerHTML = '<span class="num">' + (idx + 1) + "</span>";
-        } else {
-          slot.classList.add("revealed");
-          slot.textContent = word.text;
-        }
+        if (slot.classList.contains("revealed")) hideSlot(slot);
+        else revealSlot(slot);
       });
 
       row.appendChild(readBtn);
@@ -408,6 +446,13 @@
       grid.appendChild(card);
     });
   }
+
+  document.getElementById("showAllBtn").addEventListener("click", function () {
+    [].forEach.call(grid.querySelectorAll(".word-slot"), revealSlot);
+  });
+  document.getElementById("hideAllBtn").addEventListener("click", function () {
+    [].forEach.call(grid.querySelectorAll(".word-slot"), hideSlot);
+  });
 
   /* ---------- admin view ---------- */
   var wordInput = document.getElementById("wordInput");
@@ -489,7 +534,7 @@
 
     var lang = document.createElement("span");
     lang.className = "w-lang";
-    lang.textContent = word.lang === "zh" ? "中文" : "EN";
+    lang.textContent = langOf(word.lang).short;
 
     row.appendChild(num);
     row.appendChild(text);
@@ -535,21 +580,21 @@
 
     var langChoice = document.createElement("div");
     langChoice.className = "lang-choice";
-    var enBtn = document.createElement("button");
-    enBtn.type = "button";
-    enBtn.textContent = "🇬🇧 English";
-    var zhBtn = document.createElement("button");
-    zhBtn.type = "button";
-    zhBtn.textContent = "🇨🇳 中文";
+    var langBtns = {};
     function syncLang() {
-      enBtn.classList.toggle("selected", editLang === "en");
-      zhBtn.classList.toggle("selected", editLang === "zh");
+      Object.keys(langBtns).forEach(function (code) {
+        langBtns[code].classList.toggle("selected", editLang === code);
+      });
     }
-    enBtn.addEventListener("click", function () { editLang = "en"; syncLang(); });
-    zhBtn.addEventListener("click", function () { editLang = "zh"; syncLang(); });
+    Object.keys(LANGS).forEach(function (code) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = LANGS[code].chip;
+      b.addEventListener("click", function () { editLang = code; syncLang(); });
+      langBtns[code] = b;
+      langChoice.appendChild(b);
+    });
     syncLang();
-    langChoice.appendChild(enBtn);
-    langChoice.appendChild(zhBtn);
 
     function commit() {
       var t = input.value.trim();
