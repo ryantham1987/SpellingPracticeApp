@@ -187,14 +187,13 @@
 
   .word-list { list-style: none; margin: 0; padding: 0; }
   .word-list li {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 6px;
+    padding: 12px 4px;
     border-bottom: 1px solid #eef2f7;
   }
   .word-list li:last-child { border-bottom: none; }
-  .word-list .w-text { flex: 1; font-weight: 600; font-size: 1.05rem; }
+  .w-row { display: flex; align-items: center; gap: 10px; }
+  .w-index { color: var(--muted); font-weight: 700; font-size: 0.9rem; min-width: 22px; }
+  .word-list .w-text { flex: 1; font-weight: 600; font-size: 1.05rem; word-break: break-word; }
   .word-list .w-lang {
     font-size: 0.7rem;
     background: #eef2ff;
@@ -203,15 +202,35 @@
     border-radius: 999px;
     text-transform: uppercase;
     font-weight: 700;
+    white-space: nowrap;
   }
+  .w-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
   .icon-btn {
-    border: none;
-    background: none;
-    font-size: 1.3rem;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    font-size: 1.15rem;
     cursor: pointer;
-    padding: 4px 8px;
+    padding: 8px 13px;
+    border-radius: 10px;
+    line-height: 1;
   }
-  .del-btn { color: var(--red); }
+  .icon-btn:active { background: #f1f5f9; }
+  .icon-btn:disabled { opacity: 0.35; cursor: default; }
+  .del-btn { color: var(--red); border-color: #fecaca; }
+
+  .edit-box { display: flex; flex-direction: column; gap: 10px; }
+  .edit-actions { display: flex; gap: 8px; }
+  .edit-actions button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.98rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .save-btn { background: var(--green); color: #fff; }
+  .cancel-btn { background: #e2e8f0; color: var(--text); }
 
   .empty { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 1rem; }
   .empty .big { font-size: 2.4rem; display: block; margin-bottom: 8px; }
@@ -282,6 +301,7 @@
   var STORAGE_KEY = "spelling_words_v1";
   var words = load();
   var adminLang = "en";
+  var editingIndex = -1;
 
   /* ---------- storage ---------- */
   function load() {
@@ -410,6 +430,7 @@
     var text = wordInput.value.trim();
     if (!text) return;
     words.push({ text: text, lang: adminLang });
+    editingIndex = -1;
     save();
     wordInput.value = "";
     wordInput.focus();
@@ -431,12 +452,147 @@
     }
   });
 
+  function iconBtn(label, title, handler) {
+    var b = document.createElement("button");
+    b.className = "icon-btn";
+    b.textContent = label;
+    b.title = title;
+    b.addEventListener("click", handler);
+    return b;
+  }
+
+  function move(idx, dir) {
+    var j = idx + dir;
+    if (j < 0 || j >= words.length) return;
+    var tmp = words[idx];
+    words[idx] = words[j];
+    words[j] = tmp;
+    editingIndex = -1;
+    save();
+    renderAdmin();
+    renderPractice();
+  }
+
+  function buildViewRow(word, idx) {
+    var frag = document.createDocumentFragment();
+
+    var row = document.createElement("div");
+    row.className = "w-row";
+
+    var num = document.createElement("span");
+    num.className = "w-index";
+    num.textContent = idx + 1 + ".";
+
+    var text = document.createElement("span");
+    text.className = "w-text";
+    text.textContent = word.text;
+
+    var lang = document.createElement("span");
+    lang.className = "w-lang";
+    lang.textContent = word.lang === "zh" ? "中文" : "EN";
+
+    row.appendChild(num);
+    row.appendChild(text);
+    row.appendChild(lang);
+
+    var actions = document.createElement("div");
+    actions.className = "w-actions";
+
+    var listen = iconBtn("🔊", "Preview", function () { speak(word.text, word.lang); });
+    var edit = iconBtn("✏️", "Edit", function () { editingIndex = idx; renderAdmin(); });
+    var up = iconBtn("⬆️", "Move up", function () { move(idx, -1); });
+    up.disabled = idx === 0;
+    var down = iconBtn("⬇️", "Move down", function () { move(idx, 1); });
+    down.disabled = idx === words.length - 1;
+    var del = iconBtn("🗑️", "Delete", function () {
+      words.splice(idx, 1);
+      editingIndex = -1;
+      save();
+      renderAdmin();
+      renderPractice();
+    });
+    del.classList.add("del-btn");
+
+    actions.appendChild(listen);
+    actions.appendChild(edit);
+    actions.appendChild(up);
+    actions.appendChild(down);
+    actions.appendChild(del);
+
+    frag.appendChild(row);
+    frag.appendChild(actions);
+    return frag;
+  }
+
+  function buildEditRow(word, idx) {
+    var box = document.createElement("div");
+    box.className = "edit-box";
+    var editLang = word.lang;
+
+    var input = document.createElement("input");
+    input.type = "text";
+    input.value = word.text;
+
+    var langChoice = document.createElement("div");
+    langChoice.className = "lang-choice";
+    var enBtn = document.createElement("button");
+    enBtn.type = "button";
+    enBtn.textContent = "🇬🇧 English";
+    var zhBtn = document.createElement("button");
+    zhBtn.type = "button";
+    zhBtn.textContent = "🇨🇳 中文";
+    function syncLang() {
+      enBtn.classList.toggle("selected", editLang === "en");
+      zhBtn.classList.toggle("selected", editLang === "zh");
+    }
+    enBtn.addEventListener("click", function () { editLang = "en"; syncLang(); });
+    zhBtn.addEventListener("click", function () { editLang = "zh"; syncLang(); });
+    syncLang();
+    langChoice.appendChild(enBtn);
+    langChoice.appendChild(zhBtn);
+
+    function commit() {
+      var t = input.value.trim();
+      if (!t) return;
+      words[idx] = { text: t, lang: editLang };
+      editingIndex = -1;
+      save();
+      renderAdmin();
+      renderPractice();
+    }
+
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); commit(); }
+    });
+
+    var actions = document.createElement("div");
+    actions.className = "edit-actions";
+    var saveB = document.createElement("button");
+    saveB.className = "save-btn";
+    saveB.textContent = "✓ Save";
+    saveB.addEventListener("click", commit);
+    var cancelB = document.createElement("button");
+    cancelB.className = "cancel-btn";
+    cancelB.textContent = "✕ Cancel";
+    cancelB.addEventListener("click", function () { editingIndex = -1; renderAdmin(); });
+    actions.appendChild(saveB);
+    actions.appendChild(cancelB);
+
+    box.appendChild(input);
+    box.appendChild(langChoice);
+    box.appendChild(actions);
+
+    setTimeout(function () { input.focus(); }, 0);
+    return box;
+  }
+
   function renderAdmin() {
     wordList.innerHTML = "";
     countEl.textContent = words.length;
     if (!words.length) {
       listEmpty.style.display = "block";
       clearBtn.style.display = "none";
+      editingIndex = -1;
       return;
     }
     listEmpty.style.display = "none";
@@ -444,36 +600,7 @@
 
     words.forEach(function (word, idx) {
       var li = document.createElement("li");
-
-      var text = document.createElement("span");
-      text.className = "w-text";
-      text.textContent = word.text;
-
-      var lang = document.createElement("span");
-      lang.className = "w-lang";
-      lang.textContent = word.lang === "zh" ? "中文" : "EN";
-
-      var listen = document.createElement("button");
-      listen.className = "icon-btn";
-      listen.textContent = "🔊";
-      listen.title = "Preview";
-      listen.addEventListener("click", function () { speak(word.text, word.lang); });
-
-      var del = document.createElement("button");
-      del.className = "icon-btn del-btn";
-      del.textContent = "🗑️";
-      del.title = "Delete";
-      del.addEventListener("click", function () {
-        words.splice(idx, 1);
-        save();
-        renderAdmin();
-        renderPractice();
-      });
-
-      li.appendChild(text);
-      li.appendChild(lang);
-      li.appendChild(listen);
-      li.appendChild(del);
+      li.appendChild(idx === editingIndex ? buildEditRow(word, idx) : buildViewRow(word, idx));
       wordList.appendChild(li);
     });
   }
