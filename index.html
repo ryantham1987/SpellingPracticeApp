@@ -78,6 +78,7 @@
     box-shadow: var(--shadow);
   }
   .ctrl-btn:active { transform: scale(0.97); }
+  .ctrl-btn.active { background: var(--primary); color: #fff; }
 
   .grid {
     display: grid;
@@ -275,6 +276,10 @@
 <main>
   <!-- ============ PRACTICE VIEW ============ -->
   <section id="practiceView" class="view active">
+    <div id="orderControls" class="controls" style="display:none">
+      <button id="inOrderBtn" class="ctrl-btn active">🔢 In order</button>
+      <button id="shuffleBtn" class="ctrl-btn">🔀 Shuffle</button>
+    </div>
     <div id="practiceControls" class="controls" style="display:none">
       <button id="showAllBtn" class="ctrl-btn">👁️ Show all</button>
       <button id="hideAllBtn" class="ctrl-btn">🙈 Hide all</button>
@@ -386,6 +391,32 @@
   var grid = document.getElementById("practiceGrid");
   var practiceEmpty = document.getElementById("practiceEmpty");
   var practiceControls = document.getElementById("practiceControls");
+  var orderControls = document.getElementById("orderControls");
+  var inOrderBtn = document.getElementById("inOrderBtn");
+  var shuffleBtn = document.getElementById("shuffleBtn");
+
+  var randomMode = false;
+  var randomIndices = null;
+
+  function shuffledIndices(n) {
+    var a = [];
+    for (var i = 0; i < n; i++) a.push(i);
+    for (var k = n - 1; k > 0; k--) {
+      var j = Math.floor(Math.random() * (k + 1));
+      var t = a[k];
+      a[k] = a[j];
+      a[j] = t;
+    }
+    return a;
+  }
+
+  function displayList() {
+    if (!randomMode) return words.slice();
+    if (!randomIndices || randomIndices.length !== words.length) {
+      randomIndices = shuffledIndices(words.length);
+    }
+    return randomIndices.map(function (i) { return words[i]; });
+  }
 
   function hideSlot(slot) {
     slot.classList.remove("revealed");
@@ -401,12 +432,16 @@
     if (!words.length) {
       practiceEmpty.style.display = "block";
       practiceControls.style.display = "none";
+      orderControls.style.display = "none";
       return;
     }
     practiceEmpty.style.display = "none";
     practiceControls.style.display = "flex";
+    orderControls.style.display = "flex";
+    inOrderBtn.classList.toggle("active", !randomMode);
+    shuffleBtn.classList.toggle("active", randomMode);
 
-    words.forEach(function (word, idx) {
+    displayList().forEach(function (word, idx) {
       var card = document.createElement("div");
       card.className = "card";
 
@@ -446,6 +481,16 @@
       grid.appendChild(card);
     });
   }
+
+  inOrderBtn.addEventListener("click", function () {
+    randomMode = false;
+    renderPractice();
+  });
+  shuffleBtn.addEventListener("click", function () {
+    randomMode = true;
+    randomIndices = shuffledIndices(words.length); // reshuffle each tap
+    renderPractice();
+  });
 
   document.getElementById("showAllBtn").addEventListener("click", function () {
     [].forEach.call(grid.querySelectorAll(".word-slot"), revealSlot);
