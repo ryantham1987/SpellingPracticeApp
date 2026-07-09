@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#4f46e5" />
+<title>Spelling Practice</title>
+<style>
+  :root {
+    --bg: #eef2ff;
+    --card: #ffffff;
+    --primary: #4f46e5;
+    --primary-dark: #3730a3;
+    --accent: #f59e0b;
+    --green: #16a34a;
+    --red: #dc2626;
+    --text: #1e293b;
+    --muted: #64748b;
+    --shadow: 0 4px 14px rgba(30, 41, 59, 0.12);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC",
+      "Microsoft YaHei", sans-serif;
+    min-height: 100%;
+  }
+
+  body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--primary);
+    color: #fff;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: var(--shadow);
+  }
+  header h1 { font-size: 1.15rem; margin: 0; font-weight: 700; }
+
+  .nav-btn {
+    background: rgba(255, 255, 255, 0.18);
+    border: none;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .nav-btn:active { background: rgba(255, 255, 255, 0.32); }
+
+  main { padding: 16px; max-width: 900px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ---------- Practice grid ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    min-height: 168px;
+  }
+
+  .word-slot {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border-radius: 12px;
+    background: #f1f5f9;
+    font-weight: 700;
+    color: var(--muted);
+    min-height: 58px;
+    padding: 6px;
+    word-break: break-word;
+    line-height: 1.2;
+  }
+  .word-slot.revealed {
+    background: #ecfdf5;
+    color: var(--green);
+    font-size: 1.5rem;
+  }
+  .word-slot .num { font-size: 1.6rem; opacity: 0.4; }
+  .lang-tag {
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .btn-row { display: flex; gap: 8px; width: 100%; }
+  .action-btn {
+    flex: 1;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 4px;
+    font-size: 1.4rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: transform 0.06s ease;
+  }
+  .action-btn:active { transform: scale(0.92); }
+  .read-btn { background: var(--accent); color: #fff; }
+  .reveal-btn { background: var(--primary); color: #fff; }
+  .read-btn.speaking { animation: pulse 0.7s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+  /* ---------- Admin ---------- */
+  .panel {
+    background: var(--card);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .panel h2 { margin: 0 0 14px; font-size: 1.05rem; }
+
+  .field { margin-bottom: 12px; }
+  label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  input[type="text"], select {
+    width: 100%;
+    padding: 13px 14px;
+    font-size: 1.05rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+    color: var(--text);
+  }
+  input[type="text"]:focus, select:focus { outline: none; border-color: var(--primary); }
+
+  .lang-choice { display: flex; gap: 8px; }
+  .lang-choice button {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid #e2e8f0;
+    background: #fff;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .lang-choice button.selected {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: #fff;
+  }
+
+  .primary-btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .primary-btn:active { opacity: 0.85; }
+
+  .word-list { list-style: none; margin: 0; padding: 0; }
+  .word-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 6px;
+    border-bottom: 1px solid #eef2f7;
+  }
+  .word-list li:last-child { border-bottom: none; }
+  .word-list .w-text { flex: 1; font-weight: 600; font-size: 1.05rem; }
+  .word-list .w-lang {
+    font-size: 0.7rem;
+    background: #eef2ff;
+    color: var(--primary);
+    padding: 3px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .icon-btn {
+    border: none;
+    background: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+  .del-btn { color: var(--red); }
+
+  .empty { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 1rem; }
+  .empty .big { font-size: 2.4rem; display: block; margin-bottom: 8px; }
+
+  .clear-link {
+    display: block;
+    text-align: center;
+    color: var(--red);
+    background: none;
+    border: none;
+    font-size: 0.9rem;
+    margin: 4px auto 0;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .hint { font-size: 0.82rem; color: var(--muted); margin: 6px 0 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">🐝 Spelling Practice</h1>
+  <button class="nav-btn" id="navBtn">⚙️ Admin</button>
+</header>
+
+<main>
+  <!-- ============ PRACTICE VIEW ============ -->
+  <section id="practiceView" class="view active">
+    <div id="practiceGrid" class="grid"></div>
+    <div id="practiceEmpty" class="empty" style="display:none">
+      <span class="big">📝</span>
+      No words yet!<br />Tap <strong>⚙️ Admin</strong> to add spelling words.
+    </div>
+  </section>
+
+  <!-- ============ ADMIN VIEW ============ -->
+  <section id="adminView" class="view">
+    <div class="panel">
+      <h2>Add a word</h2>
+      <div class="field">
+        <label for="wordInput">Word</label>
+        <input type="text" id="wordInput" placeholder="e.g. elephant  or  苹果" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label>Language</label>
+        <div class="lang-choice">
+          <button type="button" data-lang="en" class="selected">🇬🇧 English</button>
+          <button type="button" data-lang="zh">🇨🇳 中文</button>
+        </div>
+      </div>
+      <button class="primary-btn" id="addBtn">➕ Add word</button>
+      <p class="hint">Tip: type the word and press Enter to add it quickly.</p>
+    </div>
+
+    <div class="panel">
+      <h2>Word list (<span id="count">0</span>)</h2>
+      <ul class="word-list" id="wordList"></ul>
+      <div id="listEmpty" class="empty" style="display:none">No words added yet.</div>
+      <button class="clear-link" id="clearBtn" style="display:none">Clear all words</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "spelling_words_v1";
+  var words = load();
+  var adminLang = "en";
+
+  /* ---------- storage ---------- */
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(words)); } catch (e) {}
+  }
+
+  /* ---------- text to speech ---------- */
+  var voices = [];
+  function refreshVoices() { voices = window.speechSynthesis ? speechSynthesis.getVoices() : []; }
+  if (window.speechSynthesis) {
+    refreshVoices();
+    speechSynthesis.onvoiceschanged = refreshVoices;
+  }
+
+  function pickVoice(lang) {
+    if (!voices.length) refreshVoices();
+    var wanted = lang === "zh" ? ["zh-cn", "zh-hans", "zh-", "zh"] : ["en-gb", "en-us", "en-"];
+    for (var w = 0; w < wanted.length; w++) {
+      for (var i = 0; i < voices.length; i++) {
+        var vl = (voices[i].lang || "").toLowerCase();
+        if (vl.indexOf(wanted[w]) === 0 || vl === wanted[w].replace(/-$/, "")) return voices[i];
+      }
+    }
+    return null;
+  }
+
+  function speak(text, lang, btn) {
+    if (!window.speechSynthesis) {
+      alert("Sorry, this browser can't read words aloud.");
+      return;
+    }
+    speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = lang === "zh" ? "zh-CN" : "en-GB";
+    var v = pickVoice(lang);
+    if (v) u.voice = v;
+    u.rate = 0.8;
+    u.pitch = 1;
+    if (btn) {
+      btn.classList.add("speaking");
+      u.onend = u.onerror = function () { btn.classList.remove("speaking"); };
+    }
+    speechSynthesis.speak(u);
+  }
+
+  /* ---------- practice view ---------- */
+  var grid = document.getElementById("practiceGrid");
+  var practiceEmpty = document.getElementById("practiceEmpty");
+
+  function renderPractice() {
+    grid.innerHTML = "";
+    if (!words.length) {
+      practiceEmpty.style.display = "block";
+      return;
+    }
+    practiceEmpty.style.display = "none";
+
+    words.forEach(function (word, idx) {
+      var card = document.createElement("div");
+      card.className = "card";
+
+      var slot = document.createElement("div");
+      slot.className = "word-slot";
+      slot.innerHTML = '<span class="num">' + (idx + 1) + "</span>";
+
+      var tag = document.createElement("div");
+      tag.className = "lang-tag";
+      tag.textContent = word.lang === "zh" ? "中文" : "English";
+
+      var row = document.createElement("div");
+      row.className = "btn-row";
+
+      var readBtn = document.createElement("button");
+      readBtn.className = "action-btn read-btn";
+      readBtn.title = "Read the word";
+      readBtn.textContent = "🔊";
+      readBtn.addEventListener("click", function () { speak(word.text, word.lang, readBtn); });
+
+      var revealBtn = document.createElement("button");
+      revealBtn.className = "action-btn reveal-btn";
+      revealBtn.title = "Show / hide the word";
+      revealBtn.textContent = "👁️";
+      revealBtn.addEventListener("click", function () {
+        if (slot.classList.contains("revealed")) {
+          slot.classList.remove("revealed");
+          slot.innerHTML = '<span class="num">' + (idx + 1) + "</span>";
+        } else {
+          slot.classList.add("revealed");
+          slot.textContent = word.text;
+        }
+      });
+
+      row.appendChild(readBtn);
+      row.appendChild(revealBtn);
+      card.appendChild(slot);
+      card.appendChild(tag);
+      card.appendChild(row);
+      grid.appendChild(card);
+    });
+  }
+
+  /* ---------- admin view ---------- */
+  var wordInput = document.getElementById("wordInput");
+  var addBtn = document.getElementById("addBtn");
+  var wordList = document.getElementById("wordList");
+  var listEmpty = document.getElementById("listEmpty");
+  var clearBtn = document.getElementById("clearBtn");
+  var countEl = document.getElementById("count");
+  var langButtons = document.querySelectorAll(".lang-choice button");
+
+  langButtons.forEach(function (b) {
+    b.addEventListener("click", function () {
+      adminLang = b.getAttribute("data-lang");
+      langButtons.forEach(function (x) { x.classList.remove("selected"); });
+      b.classList.add("selected");
+    });
+  });
+
+  function addWord() {
+    var text = wordInput.value.trim();
+    if (!text) return;
+    words.push({ text: text, lang: adminLang });
+    save();
+    wordInput.value = "";
+    wordInput.focus();
+    renderAdmin();
+    renderPractice();
+  }
+
+  addBtn.addEventListener("click", addWord);
+  wordInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); addWord(); }
+  });
+
+  clearBtn.addEventListener("click", function () {
+    if (confirm("Delete ALL words?")) {
+      words = [];
+      save();
+      renderAdmin();
+      renderPractice();
+    }
+  });
+
+  function renderAdmin() {
+    wordList.innerHTML = "";
+    countEl.textContent = words.length;
+    if (!words.length) {
+      listEmpty.style.display = "block";
+      clearBtn.style.display = "none";
+      return;
+    }
+    listEmpty.style.display = "none";
+    clearBtn.style.display = "block";
+
+    words.forEach(function (word, idx) {
+      var li = document.createElement("li");
+
+      var text = document.createElement("span");
+      text.className = "w-text";
+      text.textContent = word.text;
+
+      var lang = document.createElement("span");
+      lang.className = "w-lang";
+      lang.textContent = word.lang === "zh" ? "中文" : "EN";
+
+      var listen = document.createElement("button");
+      listen.className = "icon-btn";
+      listen.textContent = "🔊";
+      listen.title = "Preview";
+      listen.addEventListener("click", function () { speak(word.text, word.lang); });
+
+      var del = document.createElement("button");
+      del.className = "icon-btn del-btn";
+      del.textContent = "🗑️";
+      del.title = "Delete";
+      del.addEventListener("click", function () {
+        words.splice(idx, 1);
+        save();
+        renderAdmin();
+        renderPractice();
+      });
+
+      li.appendChild(text);
+      li.appendChild(lang);
+      li.appendChild(listen);
+      li.appendChild(del);
+      wordList.appendChild(li);
+    });
+  }
+
+  /* ---------- navigation ---------- */
+  var practiceView = document.getElementById("practiceView");
+  var adminView = document.getElementById("adminView");
+  var navBtn = document.getElementById("navBtn");
+  var title = document.getElementById("title");
+  var onAdmin = false;
+
+  function switchView() {
+    onAdmin = !onAdmin;
+    if (onAdmin) {
+      practiceView.classList.remove("active");
+      adminView.classList.add("active");
+      navBtn.textContent = "🐝 Practice";
+      title.textContent = "⚙️ Admin";
+      renderAdmin();
+    } else {
+      adminView.classList.remove("active");
+      practiceView.classList.add("active");
+      navBtn.textContent = "⚙️ Admin";
+      title.textContent = "🐝 Spelling Practice";
+      renderPractice();
+    }
+    window.scrollTo(0, 0);
+  }
+  navBtn.addEventListener("click", switchView);
+
+  /* ---------- init ---------- */
+  renderPractice();
+})();
+</script>
+</body>
+</html>
